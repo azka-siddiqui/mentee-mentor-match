@@ -57,7 +57,7 @@ Each file includes:
 
 ---
 
-### Featurea
+### Features
 
 #### Structured (Multiple-Choice) Data
 - Mentor and mentee feature spaces are aligned for comparability
