@@ -1,0 +1,5 @@
+.ipynb_checkpoints/
+stemingup mentorship/
+venv/
+.env
+f25_mentee_mentor_matches.csv
