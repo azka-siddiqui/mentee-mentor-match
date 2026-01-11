@@ -21,103 +21,38 @@ This system was built to:
 
 ---
 
-## How It Works
+## How the Matching Script Works
 
-At a high level, the system follows five stages:
+This notebook takes two input files (1 listing mentees, 1 listing mentors) and produces a CSV of optimal mentor-mentee pairings under each mentor’s capacity limits.
 
-1. **Data Ingestion**  
-   Mentor and mentee survey responses are loaded from CSV files.
+1. **Feature extraction**  
+   - **Multiple-choice questions** (program, skills, timezone, meeting frequency, etc.) are converted into one-hot vectors.  
+   - **Free-text answers** are combined and converted into TF-IDF vectors.  
+   - Both sets of features are stacked into a single sparse matrix for mentees (`X`) and for mentors (`Y`).
 
-2. **Feature Extraction**  
-   - Multiple-choice responses are encoded as structured numerical features.
-   - Free-text responses are converted into semantic vectors using TF–IDF.
+2. **Capacity expansion**  
+   - Each mentor can take on 1 or more mentees (as specified in their “capacity” column).  
+   - We “expand” each mentor into that many _slots_ so that matching sees every available spot.
 
-3. **Compatibility Scoring**  
-   Each mentee is compared against every mentor to measure alignment across interests, goals, communication style, and availability.
+3. **Global optimization**  
+   - We compute cosine similarity between every mentee and every mentor-slot, resulting in a single similarity matrix.  
+   - We then build a “cost” matrix (`1 – similarity`) and feed it into the Hungarian algorithm.  
+   - This finds the assignment of mentees to slots that **maximizes total compatibility** across _all_ matches, while ensuring no mentor is over-assigned.
 
-4. **Optimal Assignment**  
-   A global optimization algorithm assigns mentees to mentors while respecting mentor capacity limits.
+4. **Resulting CSV**  
+   - The script writes `s25_mentee_mentor_matches.csv`, which lists for each matched pair:  
+     - The mentee’s email  
+     - The mentor’s email  
+     - A numeric compatibility score (0.0–1.0)  
+     - A one-sentence, human-readable justification generated via the OpenAI API  
 
-5. **Explainability & Output**  
-   Natural-language justifications are generated for each match, results are saved to CSV, and a network visualization is created.
+Because the Hungarian solver considers every possible pairing at once, it guarantees the best overall outcome: you may see some individual mentee scores dip (versus a purely greedy, one-by-one approach), but the _total_ compatibility sum is as large as possible under the exact capacity constraints. That way, even if there aren’t enough slots for every mentee, you know you’re getting the strongest pool of matches overall.
 
----
-
-## Technical Details
-
-### Data Sources
-
-- **Mentees CSV**: `f25_mentees.csv`
-- **Mentors CSV**: `f25_mentors.csv`
-
-Each file includes:
-- Identification fields (name, email)
-- Structured survey responses (e.g., timezone, interests, meeting frequency)
-- Open-ended text responses (e.g., goals, hobbies, motivation)
+![Mentor–Mentee Match Graph](https://github.com/ammiellewb/techplus-s25-mentorship/blob/main/Mentor%E2%80%93Mentee%20Match%20Graph.png](https://github.com/azka-siddiqui/mentee-mentor-match/blob/main/Mentor%E2%80%93Mentee%20Match%20Graph.png "Mentor–Mentee Match Graph")
 
 ---
 
-### Features
-
-#### Structured (Multiple-Choice) Data
-- Mentor and mentee feature spaces are aligned for comparability
-- Examples:
-  - Timezone
-  - Fields of interest
-  - Social style
-  - Desired meeting frequency
-  - Skills sought or offered
-
-#### Free-Text Data
-- Relevant text fields are concatenated per participant
-- Vectorized using **TF–IDF**
-- Captures semantic similarity between mentor and mentee responses
-
----
-
-### Mentor Capacity Handling
-
-Mentors may take multiple mentees.
-
-To support this:
-- Each mentor is expanded into multiple **mentor slots** based on declared capacity
-- Each slot represents a single possible assignment
-- This converts the problem into a one-to-one matching formulation
-
----
-
-### Matching Algorithm
-
-- **Similarity metric**: Cosine similarity
-- **Optimization method**: Hungarian Algorithm (`linear_sum_assignment`)
-
-This guarantees:
-- Each mentee is matched to at most one mentor
-- Mentor capacity constraints are respected
-- Overall compatibility across the cohort is maximized (global optimum)
-
----
-
-### Explainability with OpenAI
-
-For each matched pair:
-- A prompt is generated using mentor and mentee survey data
-- A concise, natural-language explanation is produced using the OpenAI API
-- Ensures the matching process is transparent and easy to communicate.
-
----
-
-## Outputs
-
-### 1. Match Results CSV
-`f25_mentee_mentor_matches.csv` contains:
-- Mentor and mentee identifiers
-- Compatibility scores
-- Natural-language justifications
-- Academic and demographic metadata
-- Unmatched mentees (if applicable)
-- 
----
+**Tip:** If you ever need to tweak what “compatibility” means (eg. by weighting certain questions more heavily), you can adjust the feature stacking step before the similarity calculation and rerun the notebook.
 
 ## Requirements
 
